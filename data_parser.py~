@@ -1,0 +1,17 @@
+"""Parses data to standard.
+
+Each sms message is represented by:
+sender (sender's phone number)
+sender_name (sender's contact name)
+msg (SMS message)
+"""
+
+import xml.etree.ElementTree as ET
+
+def parseSmsExport(filename):
+    tree = ET.parse(filename)
+    root = tree.getroot()
+    for sms in root.iter('sms'):
+        sender = sms.attrib['address']
+        sender_name = sms.attrib['contact_name']
+        msg = sms.attrib['body']
