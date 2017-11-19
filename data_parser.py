@@ -12,6 +12,8 @@ msg (SMS message)
 import argparse
 import json
 import os
+import pickle
+
 import numpy as np
 import xml.etree.ElementTree as ET
 
@@ -88,21 +90,28 @@ def loadData(infile):
     return data
 
 
+def preprocess(s):  # Can't use lambda or else can't pickle non-main function.
+    return s.lower()
+
+
 class BOWParser(object):
     """Bag of Words parser."""
 
     def __init__(self):
         self.outsuffix = '_bow.npy'
+        self.vectorizer_suffix = self.outsuffix + '_vec.pk'
 
     def convertFile(self, infile, outfile):
         data = loadData(infile)
-        vectorizer = TfidfVectorizer(preprocessor=lambda s: s.lower())
+        vectorizer = TfidfVectorizer(preprocessor=preprocess)
         X = vectorizer.fit_transform(data)
-        outfile += self.outsuffix
-        with open(outfile, 'w') as f:
+        X_file = outfile + self.outsuffix
+        with open(X_file, 'w') as f:
             np.save(f, X)
         print('Wrote to %s, TF-idf samples: %s, features: %s' % (
-                outfile, X.shape[0], X.shape[1]))
+                X_file, X.shape[0], X.shape[1]))
+        pickle.dump(vectorizer, open(outfile + self.vectorizer_suffix, 'wb'))
+        
 
 def toOutfile(infile, outdir):
     name = infile.split('/')[-1]
