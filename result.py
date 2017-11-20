@@ -1,6 +1,12 @@
 # parses kmeans results (looks at the clusters)
 import json
 import numpy as np
+import argparse
+
+fp = argparse.ArgumentParser()
+fp.add_argument('data')
+
+
 
 def loadData(infile):
     with open(infile, 'r') as f:

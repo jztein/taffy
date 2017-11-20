@@ -1,5 +1,7 @@
 # Makes training data.
+from __future__ import print_function
 import json
+import random
 import os
 import argparse
 
@@ -55,10 +57,41 @@ def makeKmeansTrain(data_file):
 
 
 def makeVanillaTrain(data_file):
-    train = load_bow.loadAndConvertVanillaTrain(data_file)
+    data_json = load_bow.loadAndConvertVanillaTrain(data_file)
     filename = makeFile(flags.train_json)
     with open(filename, 'w') as f:
-        json.dump(train, f)
+        json.dump(data_json, f)
+
+    indices = [i for i in xrange(len(data_json))]
+    random.shuffle(indices)
+    eighty_p = int(.8 * len(data_json))
+    ninety_p = int(.9 * len(data_json))
+    train_json, dev_json, test_json = [], [], []
+    for i, index in enumerate(indices):
+        if i < eighty_p:
+            train_json.append(data_json[index])
+        elif i < ninety_p:
+            dev_json.append(data_json[index])
+        else:
+            test_json.append(data_json[index])
+
+    outfile = flags.train_json
+    makeDataFile(makeFile('train_' + outfile), train_json)
+    makeDataFile(makeFile('dev_' + outfile), dev_json)
+    makeDataFile(makeFile('test_' + outfile), test_json)
+
+    with open(filename + '_vocab.txt', 'w') as fv:
+        vocab = load_bow.loadVanillaTrainVocab(data_json)
+        for word in vocab:
+            print(word, file=fv)
+
+def makeDataFile(filename, data_json):
+    with open(filename + '_X.txt', 'w') as fx:
+        with open(filename + '_Y.txt', 'w') as fy:
+            for xy in data_json:
+                # encode else will get ascii encoding UnicodeEncodeError's.
+                print(xy['x'], file=fx)
+                print(xy['y'], file=fy)
 
 
 if __name__ == '__main__':
@@ -66,3 +99,6 @@ if __name__ == '__main__':
         makeKmeansTrain(data_file)
     elif flags.data_type == 'vanilla':
         makeVanillaTrain(data_file)
+    elif flags.data_type == 'all':
+        data_json = load_bow.loadAndConvertVanillaTrain(data_file)
+        makeDataFile(makeFile('all_' + flags.train_json), data_json)
