@@ -6,32 +6,43 @@ import tensorflow as tf
 
 data_type = tf.float32
 
-DATA_DIR = 'data'
-VOCAB = 'train.txt'
-TRAIN = 'train.txt'
-INIT_SCALE = 1.0
+use_sms = True
+do_tv = False
+
+if not use_sms:
+  DATA_DIR = 'data'
+  VOCAB = TRAIN = 'train.txt'
+else:
+  DATA_DIR = '/Users/jiayu/Documents/1Stanford/cs229/project/out'
+  VOCAB = TRAIN = 'sms-20171118000041.xml_se.train.txt'
+  TEST = 'sms-20171118000041.xml_se.test.txt'
+  VALID = 'sms-20171118000041.xml_se.valid.txt'
+INIT_SCALE = 0.1
+
+SAVE_PATH = '/Users/jiayu/Documents/1Stanford/cs229/project/taffy/seq/out/all'
 
 
 class DefaultConfig(object):
-  num_hidden_units = 100
+  num_hidden_units = 50
   num_layers = 2
   dropout = 0.2
-  num_steps = 20
+  num_steps = 10
   learning_rate = 1.00
-  batch_size = 20
+  batch_size = 10
 
 
 class SeqModel(object):
-  def __init__(self, cfg, data):
+  def __init__(self, cfg, data, is_training=False):
     self.num_hidden_units = cfg.num_hidden_units
     self.num_layers = cfg.num_layers
     self.dropout = cfg.dropout
     self.learning_rate = cfg.learning_rate
     self.data = data
+    self.eval_op = None  # Will be none for non-training models.
 
-    self._init_rnn()
+    self._init_rnn(is_training)
 
-  def _init_rnn(self):
+  def _init_rnn(self, is_training):
     cell = tf.contrib.rnn.DropoutWrapper(
         tf.contrib.rnn.BasicLSTMCell(self.num_hidden_units),
         output_keep_prob=1.0 - self.dropout)
@@ -76,13 +87,15 @@ class SeqModel(object):
         average_across_batch=True)
     cost = tf.reduce_mean(loss)
 
-    optimizer = tf.train.GradientDescentOptimizer(
-        learning_rate=self.learning_rate)
-    # Describes the RNN training model.
+    # Describe the RNN training model.
     self.cost = cost
-    self.eval_op = optimizer.minimize(cost)
     self.initial_state = initial_state
     self.final_state = final_state
+    if not is_training:
+      return
+    optimizer = tf.train.GradientDescentOptimizer(
+        learning_rate=self.learning_rate)
+    self.eval_op = optimizer.minimize(cost)
 
 
 def run(model, sess):
@@ -90,9 +103,10 @@ def run(model, sess):
 
   training_graphs = {
       'state': model.final_state,
-      'eval_op': model.eval_op,
       'cost': model.cost,
   }
+  if model.eval_op is not None:
+    training_graphs['eval_op'] = model.eval_op
 
   costs = 0.0
   iters = 0
@@ -113,7 +127,8 @@ def run(model, sess):
     costs += cost
     iters += model.data.num_steps
     if step % 10 == 0:
-      print('Step: %s, ppl: %0.3f' % (step, np.exp(costs / iters)))
+      print('Step: %s, cost: %.03f, ppl: %0.3f' % (
+          step, cost, np.exp(costs / iters)))
 
   return np.exp(costs / iters)  # Perplexity.
 
@@ -168,9 +183,11 @@ class DataReader(object):
     if filename not in self.datas:
       self.set_file_ids(filename)
 
-    batch_size = self.batch_size
-    num_steps = self.num_steps
+    with tf.name_scope(filename, 'Reader', [
+        self.data_ids[filename], self.batch_size, self.num_steps]):
+      return self._set_file_data(filename, self.batch_size, self.num_steps)
 
+  def _set_file_data(self, filename, batch_size, num_steps):
     ids = self.data_ids[filename]
     data = tf.convert_to_tensor(ids, name=filename, dtype=tf.int32)
 
@@ -194,7 +211,7 @@ class DataReader(object):
                          [batch_size, (i + 1) * num_steps + 1])
     y.set_shape([batch_size, num_steps])
 
-    self.datas[filename] = Data(
+    return Data(
         x=x, y=y, batch_size=batch_size, num_steps=num_steps,
         vocab_size=self.vocab_size, num_data=len(ids))
 
@@ -205,12 +222,30 @@ def main(_):
   with tf.Graph().as_default():
 
     reader = DataReader(DATA_DIR, VOCAB, cfg)
-    reader.set_file_data(TRAIN)
 
     initializer = tf.random_uniform_initializer(-INIT_SCALE, INIT_SCALE)
 
-    with tf.variable_scope('MyRNN', initializer=initializer, reuse=None):
-      seq_model = SeqModel(cfg, reader.datas[TRAIN])
+    with tf.name_scope('Train'):
+      with tf.variable_scope('MyRNN', initializer=initializer, reuse=None):
+        train_data = reader.set_file_data(TRAIN)
+        seq_model = SeqModel(cfg, train_data, is_training=True)
+      tf.summary.scalar('Training loss', seq_model.cost)
+
+    if do_tv:
+      with tf.name_scope('Validate'):
+        with tf.variable_scope('MyRNN', initializer=initializer, reuse=True):
+          valid_data = reader.set_file_data(VALID)
+          valid_seq_model = SeqModel(cfg, valid_data)
+        tf.summary.scalar('Validation loss', valid_seq_model.cost)
+
+      with tf.name_scope('Test'):
+        test_cfg = DefaultConfig()
+        test_cfg.batch_size = 1
+        test_cfg.num_steps = 1
+        with tf.variable_scope('MyRNN', initializer=initializer, reuse=True):
+          test_data = reader.set_file_data(TEST)
+          test_seq_model = SeqModel(cfg, test_data)
+        tf.summary.scalar('Test loss', valid_seq_model.cost)#'''
 
     a = '''
     metagraph = tf.train.export_meta_graph()
@@ -221,9 +256,20 @@ def main(_):
     sv = tf.train.Supervisor(logdir='/tmp/tf/log1')
     config_proto = tf.ConfigProto(allow_soft_placement=False)
     with sv.managed_session(config=config_proto) as sess:
-      for _ in range(2):
+      for i in range(2):
         perplexity = run(seq_model, sess)
-        print('Momo perplexity: %.3f' % perplexity)
+        print('%s: Training perplexity: %.3f' % (i, perplexity))
+        if do_tv:
+          valid_perplexity = run(valid_seq_model, sess)
+          print('%s: Validation perplexity: %.3f' % (i, valid_perplexity))
+
+      if do_tv:
+        test_perplexity = run(test_seq_model, sess)
+        print('Test perplexity: %.3f' % test_perplexity)
+
+      if SAVE_PATH:
+        print('Saving model to: %s' % SAVE_PATH)
+        sv.saver.save(sess, SAVE_PATH, global_step=sv.global_step)
 
 
 if __name__ == '__main__':
