@@ -22,9 +22,11 @@ flag_parser.add_argument('dataset')
 flag_parser.add_argument('--repro')
 flags = flag_parser.parse_args()
 
+SUFFIX = '_train1_cv'
+
 SE_DATA = '../out/sms-20171118000041.xml_se.json'
-LABELS = '../out/X_labels_train1.npy'
-CENTROIDS = '../out/X_centroids_train1.npy'
+LABELS = '../out/X_labels' + SUFFIX + '.npy'
+CENTROIDS = '../out/X_centroids' + SUFFIX + '.npy'
 
 def getXAndDataset(mode, x_npz_file, dataset_file):
     train, dev, test = pickle.load(open(dataset_file, 'rb'))
@@ -108,7 +110,7 @@ def eval(centroids, src_file, tgt_file, label_map, X, X_indices):
                 results.append(h)
                 results.append(str(best_c_i))
 
-    with open('kmeans_eval_train1.txt', 'w') as f:
+    with open('../out/kmeans_eval' + SUFFIX + '.txt', 'w') as f:
         f.write('\n'.join(results))
 
 

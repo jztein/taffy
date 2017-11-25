@@ -28,10 +28,11 @@ flags = flag_parser.parse_args()
 
 class SmsExportParser(object):
 
-    def __init__(self):
+    def __init__(self, write_json=True):
         self.data = {}  # Use same object for perf.
-        self.outsuffix = '_se.json'
+        self.outsuffix = '_se.json' if write_json else '_se.txt'
         self.numMsgs = 0
+        self.write_json = write_json
 
     def convertFile(self, infile, outfile):
         tree = ET.parse(infile)
@@ -42,11 +43,36 @@ class SmsExportParser(object):
         for sms in root.iter('sms'):
             self.parseElement(sms)
             self.numMsgs += 1
-        outfile += self.outsuffix
-        with open(outfile, 'w') as f:
-            json.dump(self.data, f, indent=4, separators=(',', ':'))
-        print('Wrote to %s, threads: %s, msgs: %s' % (
+        if self.write_json:
+            with open(outfile + self.outsuffix, 'w') as f:
+                json.dump(self.data, f, indent=4, separators=(',', ':'))
+            print('Wrote to %s, threads: %s, msgs: %s' % (
                 outfile, len(self.data), self.numMsgs))
+        else:
+            lines = []
+            for thread in self.data.itervalues():
+                for msg in thread['thread']:
+                    if msg['msg']:
+                        lines.append(msg['msg'])
+            num_train_lines = int(len(lines) * 0.9)
+            print 'num train lines:', num_train_lines
+            num_test_lines = 1
+            train_lines = lines[:num_train_lines]
+            valid_lines = lines[num_train_lines:-num_test_lines]
+            test_lines = lines[-num_test_lines:]
+
+            train_file = outfile + '_se.train.txt'
+            test_file = outfile + '_se.test.txt'
+            valid_file = outfile + '_se.valid.txt'
+            with open(train_file, 'w') as f:
+                f.write('\n'.join(train_lines).encode('utf-8'))
+            with open(test_file, 'w') as f:
+                f.write('\n'.join(test_lines).encode('utf-8'))
+            with open(valid_file, 'w') as f:
+                f.write('\n'.join(valid_lines).encode('utf-8'))
+            print('Wrote to %s, threads: %s, msgs: %s' % (
+                str([train_file, test_file, valid_file]),
+                len(self.data), self.numMsgs))
 
     def parseElement(self, sms, is_sms=True):
         thread_id = sms.get('address').strip('+ ')
@@ -119,7 +145,7 @@ def toOutfile(infile, outdir):
 
 def main():
     if flags.cmd == 'smsexport':
-        parser = SmsExportParser()
+        parser = SmsExportParser(write_json=False)
     elif flags.cmd == 'bow':
         parser = BOWParser()
     else:

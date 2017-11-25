@@ -23,7 +23,7 @@ from sklearn.manifold import TSNE
 
 COLORS = ['bgrcmk']
 
-SUFFIX = '_train1'
+SUFFIX = '_train1_cv'
 
 flag_parser = argparse.ArgumentParser()
 flag_parser.add_argument('n')
@@ -42,8 +42,8 @@ def loadData(infile):
 
 def getBOW(bowfile):
     data = loadData(bowfile)
-    #vectorizer = CountVectorizer(preprocessor=lambda s: s.lower())
-    vectorizer = TfidfVectorizer(preprocessor=lambda s: s.lower())
+    vectorizer = CountVectorizer(preprocessor=lambda s: s.lower())
+    #vectorizer = TfidfVectorizer(preprocessor=lambda s: s.lower())
     X = vectorizer.fit_transform(data)
     print('TF-idf samples: %s, features: %s' % X.shape)
 
