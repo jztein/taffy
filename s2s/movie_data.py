@@ -1,5 +1,6 @@
 # Prepares movie lines.
 import collections
+import random
 import re
 import os
 
@@ -29,7 +30,7 @@ def load_lines_and_vocab(filename):
                 continue
             line_map[line_id] = ' '.join(speech_words)
             vocab.update(speech_words)
-    return line_map, ['<GO>', '<STOP>', '<UNK>'] + vocab.keys()
+    return line_map, ['<unk>', '<s>', '</s>'] + vocab.keys()
 
 
 def make_convs(filename, line_map):
@@ -47,6 +48,8 @@ def make_convs(filename, line_map):
                 if x is None or y is None: continue
                 X.append(x)
                 Y.append(y)
+    random.shuffle(X)
+    random.shuffle(Y)
     return X, Y
 
 
@@ -54,14 +57,35 @@ if __name__ == '__main__':
     line_map, vocab = load_lines_and_vocab(lines_file)
     X, Y = make_convs(conversations_file, line_map)
 
-    x_file = os.path.join(OUT_DIR, 'movie_lines_X.txt')
-    y_file = os.path.join(OUT_DIR, 'movie_lines_Y.txt')
-    vocab_file = os.path.join(OUT_DIR, 'movie_lines_vocab.txt')
+    x_file = os.path.join(OUT_DIR, 'movie_lines')
+    y_file = os.path.join(OUT_DIR, 'movie_lines')
+    vocab_file = os.path.join(OUT_DIR, 'movie_lines_vocab')
 
+    x_suffix = '.x'
+    y_suffix = '.y'
 
-    with open(x_file, 'w') as xf:
-        with open(y_file, 'w') as yf:
-            with open(vocab_file, 'w') as vf:
-                xf.write('\n'.join(X))
-                yf.write('\n'.join(Y))
-                vf.write('\n'.join(vocab))
+    with open(vocab_file + x_suffix, 'w') as vfx:
+        with open(vocab_file + y_suffix, 'w') as vfy:
+            vfx.write('\n'.join(vocab))
+            vfy.write('\n'.join(vocab))
+
+    num_dev = int(len(X)*.8)
+    num_test = int(len(X)*.1)
+    dev_X, dev_Y = X[:num_dev], Y[:num_dev]
+    train_X, train_Y = X[num_dev:-num_test], Y[num_dev:-num_test]
+    test_X, test_Y = X[num_test:], Y[num_test]
+
+    with open(x_file + '_dev' + x_suffix, 'w') as xf:
+        with open(y_file + '_dev' + y_suffix, 'w') as yf:
+            xf.write('\n'.join(dev_X))
+            yf.write('\n'.join(dev_Y))
+
+    with open(x_file + '_train' + x_suffix, 'w') as xf:
+        with open(y_file + '_train' + y_suffix, 'w') as yf:
+            xf.write('\n'.join(train_X))
+            yf.write('\n'.join(train_Y))
+
+    with open(x_file + '_test' + x_suffix, 'w') as xf:
+        with open(y_file + '_test' + y_suffix, 'w') as yf:
+            xf.write('\n'.join(test_X))
+            yf.write('\n'.join(test_Y))
