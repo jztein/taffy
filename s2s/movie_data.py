@@ -69,11 +69,11 @@ if __name__ == '__main__':
             vfx.write('\n'.join(vocab))
             vfy.write('\n'.join(vocab))
 
-    num_dev = int(len(X)*.8)
+    num_train = int(len(X)*.8)
     num_test = int(len(X)*.1)
-    dev_X, dev_Y = X[:num_dev], Y[:num_dev]
-    train_X, train_Y = X[num_dev:-num_test], Y[num_dev:-num_test]
-    test_X, test_Y = X[num_test:], Y[num_test]
+    train_X, train_Y = X[:num_train], Y[:num_train]
+    dev_X, dev_Y = X[num_train:-num_test], Y[num_train:-num_test]
+    test_X, test_Y = X[-num_test:], Y[-num_test:]
 
     with open(x_file + '_dev' + x_suffix, 'w') as xf:
         with open(y_file + '_dev' + y_suffix, 'w') as yf:
