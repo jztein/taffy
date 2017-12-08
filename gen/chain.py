@@ -55,14 +55,56 @@ def ps_idx(word_i, word_j):
     return word_i * 10 + word_j
 
 
-class TwoChain(object):
+class BaseChain(object):
+
     def __init__(self):
+        num_ab = NUM_C if self.use_2 else NUM_AB
+
         # PS[ps_idx(a, b)][c] = probability
-        self.PS = np.zeros((NUM_C, NUM_C))
+        self.PS = np.zeros((num_ab, NUM_C))
         # PS's numerator.
-        self.ABC = np.zeros((NUM_C, NUM_C))
+        self.ABC = np.zeros((num_ab, NUM_C))
         # PS's denominator.
-        self.AB = np.zeros(NUM_C)
+        self.AB = np.zeros(num_ab)
+
+    def update(self, lines):
+        raise ValueError('update not implemented %s' % self.__name__)
+
+    def get_best_c(self, a, b):
+        if self.use_2:
+            c_probs = self.PS[a]
+        else:
+            c_probs = self.PS[ps_idx(a, b)]
+
+        if np.sum(c_probs) == 0.:
+            return None
+        if True:
+            total_probs = np.sum(c_probs)
+            prob = random.uniform(0., total_probs)
+            for c in C_RANGE:
+                prob -= c_probs[c]
+                if prob <= 0.:
+                    best_c = c
+                    break
+            return best_c
+        best_c = np.argmax(c_probs)
+        return best_c
+
+    def new_ab(self):
+        a = IDS[-1]
+        b = None
+        while a == IDS[-1]:
+            a = random.choice(IDS)
+            if not self.use_2:
+                b = a + 1
+        return a, b
+
+
+class TwoChain(BaseChain):
+
+    def __init__(self):
+        self.use_2 = True
+        super(TwoChain, self).__init__()
 
     def update(self, lines):
         num_processed = 0
@@ -82,28 +124,12 @@ class TwoChain(object):
 
         print('Two chain processed:', num_processed)
 
-    def get_best_c(self, a, unused):
-        c_probs = self.PS[a]
-        if np.sum(c_probs) == 0.:
-            return None
-        best_c = np.argmax(c_probs)
-        return best_c
 
-    def new_ab(self):
-        a = IDS[-1]
-        while a == IDS[-1]:
-            a = random.choice(IDS)
-        return a, None
+class ThreeChain(BaseChain):
 
-
-class ThreeChain(object):
     def __init__(self):
-        # PS[ps_idx(a, b)][c] = probability
-        self.PS = np.zeros((NUM_AB, NUM_C))
-        # PS's numerator.
-        self.ABC = np.zeros((NUM_AB, NUM_C))
-        # PS's denominator.
-        self.AB = np.zeros(NUM_AB)
+        self.use_2 = False
+        super(ThreeChain, self).__init__()
 
     def update(self, lines):
         num_processed = 0
@@ -138,20 +164,6 @@ class ThreeChain(object):
                     self.PS[ab_i, y_c] = float(
                         self.ABC[ab_i, y_c]) / self.AB[ab_i]
         print('Three chain with reply processed:', num_processed)
-
-    def get_best_c(self, a, b):
-        c_probs = self.PS[ps_idx(a, b)]
-        if np.sum(c_probs) == 0.:
-            return None
-        best_c = np.argmax(c_probs)
-        return best_c
-
-    def new_ab(self):
-        a = IDS[-1]
-        while a == IDS[-1]:
-            a = random.choice(IDS)
-            b = a + 1
-        return a, b
 
 
 def make_chain(ChainClazz, use_2, use_reply=False):
@@ -207,17 +219,18 @@ def load_chain(ChainClazz, use_2, use_reply=False):
 
 def main():
     #random.seed()
-    with_reply = True
+    #with_reply = True
     with_reply = False
     if with_reply:
         reply_chain()
         return
 
-    combined = False #True
+    combined = True
+    #combined = False
     if combined:
         two_chainz()
     else:
-        one_chain(use_2=True)
+        one_chain(use_2=False)
 
 
 def reply_chain():
@@ -272,6 +285,7 @@ def generate_one_two_chainz_line(chain2, chain3, max_len=8, init_with_3=False):
     if init_with_3:
         w0, w1 = chain3.new_ab()
         words = [w0, w1]
+        max_len=10
     else:
         w1, _ = chain2.new_ab()
         w0 = None
