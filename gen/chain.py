@@ -12,6 +12,15 @@ SUFFIX = '_1'
 X_FILE = 'all_se_source_X.txt' + SUFFIX + '.pk'
 Y_FILE = 'all_se_source_Y.txt' + SUFFIX + '.pk'
 VOCAB_FILE = 'all_vocab' + SUFFIX + SUFFIX + '.pk'
+PFX = ''
+
+if True:  # Use wapp.
+    VOCAB_DIR = '/Users/kristenaw/Documents/Stanford/project/taffy/wapp'
+    X_Y_DIR = VOCAB_DIR
+    PFX = 'wapp_'
+    X_FILE = PFX + X_FILE
+    Y_FILE = PFX + Y_FILE
+    VOCAB_FILE = PFX + VOCAB_FILE
 
 
 def unpickle(dir, filename):
@@ -20,11 +29,6 @@ def unpickle(dir, filename):
         return pickle.load(f)
 
 
-x_ids = unpickle(X_Y_DIR, X_FILE)
-y_ids = unpickle(X_Y_DIR, Y_FILE)
-print('Num X lines', len(x_ids))
-print('Num Y lines', len(y_ids))
-
 vocab_to_ids, ids_to_vocab = unpickle(VOCAB_DIR, VOCAB_FILE)
 IDS = ids_to_vocab.keys()
 STOP = None
@@ -32,8 +36,7 @@ for id, vocab in ids_to_vocab.iteritems():
     if vocab == '.':
         STOP = id
         print('STOP id:', STOP)
-    elif vocab == 'though??':
-        print('though??: %s' % id)
+        break
 if STOP is None:
     print('STOP is none')
     STOP = len(vocab_to_ids)
@@ -42,7 +45,6 @@ if STOP is None:
 
 num_vocab = len(vocab_to_ids)
 print('NUM vocab:', num_vocab)
-
 
 NUM_AB = num_vocab * 10 + num_vocab
 NUM_C = num_vocab
@@ -166,11 +168,20 @@ class ThreeChain(BaseChain):
         print('Three chain with reply processed:', num_processed)
 
 
-def make_chain(ChainClazz, use_2, use_reply=False):
+def make_chain(ChainClazz, use_2, use_reply=False, split=False):
     print('Making chain:', ChainClazz.__name__, use_reply)
     suffix = '_n2' if use_2 else '_n3'
     if use_reply:
         suffix += '_reply'
+    if split:
+        suffix += '_split'
+
+    x_ids = unpickle(X_Y_DIR, X_FILE)
+    y_ids = unpickle(X_Y_DIR, Y_FILE)
+
+    
+    print('Num X lines', len(x_ids))
+    print('Num Y lines', len(y_ids))
 
     chain = ChainClazz()
     if use_reply:
@@ -182,9 +193,9 @@ def make_chain(ChainClazz, use_2, use_reply=False):
     s_AB = scipy.sparse.csr_matrix(chain.AB)
     s_ABC = scipy.sparse.csr_matrix(chain.ABC)
 
-    scipy.sparse.save_npz('PS' + suffix + '.npz', s_PS)
-    scipy.sparse.save_npz('AB' + suffix + '.npz', s_AB)
-    scipy.sparse.save_npz('ABC' + suffix + '.npz', s_ABC)
+    scipy.sparse.save_npz(PFX + 'PS' + suffix + '.npz', s_PS)
+    scipy.sparse.save_npz(PFX + 'AB' + suffix + '.npz', s_AB)
+    scipy.sparse.save_npz(PFX + 'ABC' + suffix + '.npz', s_ABC)
 
     print('saved chain!\n')
     return chain
@@ -204,9 +215,9 @@ def load_chain(ChainClazz, use_2, use_reply=False):
     suffix = '_n2' if use_2 else '_n3'
     if use_reply:
         suffix += '_reply'
-    PS = make_dense('PS' + suffix + '.npz')
-    AB = make_dense('AB' + suffix + '.npz')
-    ABC = make_dense('ABC' + suffix + '.npz')
+    PS = make_dense(PFX + 'PS' + suffix + '.npz')
+    AB = make_dense(PFX + 'AB' + suffix + '.npz')
+    ABC = make_dense(PFX + 'ABC' + suffix + '.npz')
     chain = ChainClazz()
     chain.PS = PS
     chain.AB = AB
@@ -225,12 +236,12 @@ def main():
         reply_chain()
         return
 
-    combined = True
-    #combined = False
+    #combined = True
+    combined = False
     if combined:
         two_chainz()
     else:
-        one_chain(use_2=False)
+        one_chain(use_2=True)
 
 
 def reply_chain():
@@ -339,7 +350,7 @@ def generate_line(chain, use_2, max_len=8):
 
             if c is None:
                 # break_early
-                #if True: break
+                if True: break
                 w1, _ = chain.new_ab()
                 continue
 
@@ -353,6 +364,8 @@ def generate_line(chain, use_2, max_len=8):
             c = chain.get_best_c(w1, w2)
 
             if c is None:
+                # return_early
+                if True: break
                 w1, w2 = chain.new_ab()
                 continue
 
