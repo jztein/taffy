@@ -23,7 +23,7 @@ from sklearn.manifold import TSNE
 
 COLORS = ['bgrcmk']
 
-SUFFIX = '_train1_cv'
+SUFFIX = '_train1_wak11'
 
 flag_parser = argparse.ArgumentParser()
 flag_parser.add_argument('n')
@@ -42,8 +42,8 @@ def loadData(infile):
 
 def getBOW(bowfile):
     data = loadData(bowfile)
-    vectorizer = CountVectorizer(preprocessor=lambda s: s.lower())
-    #vectorizer = TfidfVectorizer(preprocessor=lambda s: s.lower())
+    #vectorizer = CountVectorizer(preprocessor=lambda s: s.lower())
+    vectorizer = TfidfVectorizer(preprocessor=lambda s: s.lower())
     X = vectorizer.fit_transform(data)
     print('TF-idf samples: %s, features: %s' % X.shape)
 
@@ -56,9 +56,9 @@ dataset_file = '../out/kmeans_dataset' + SUFFIX + '.pk'
 
 def makeDataset(num_data):
     indices = [i for i in xrange(num_data)]
-    random.shuffle(indices)
-    eighty_p = int(.8 * num_data)
-    ninety_p = int(.9 * num_data)
+    #random.shuffle(indices)
+    eighty_p = int(.9 * num_data)
+    ninety_p = int(.95 * num_data)
     train, dev, test = [], [], []
     for i, index in enumerate(indices):
         if i < eighty_p:
@@ -107,18 +107,16 @@ def main():
     pickle.dump(label_map, open('../out/X_label_map' + SUFFIX + '.pk', 'wb'))
     np.save('../out/km_centroids' + SUFFIX + '.npy', km.cluster_centers_)
 
-    if True:
-        return
-
-    printStats(km, vectorizer)  # Top features
-
     if False:
+        printStats(km, vectorizer)  # Top features
+
+    if False:#True:
         t0_t = time()
         embeddings = TSNE(n_components=2)#tsne_num_components)
         Y = embeddings.fit_transform(X.todense())
         np.save('../out/tsne' + SUFFIX + '.npy', Y)
         for i in xrange(n):
-            plt.scatter(Y[km.labels_==i, 0], Y[km.labels_==i, 1], c=COLORS[i])
+            plt.scatter(Y[km.labels_==i, 0], Y[km.labels_==i, 1])
         plt.show()
         print('TSNE took %.3fs' % (time() - t0_t))
 

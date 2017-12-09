@@ -3,10 +3,12 @@ import json
 import numpy as np
 import argparse
 
+import load_bow
+
 fp = argparse.ArgumentParser()
 fp.add_argument('data')
 
-SUFFIX = '_train1_cv'
+SUFFIX = '_train1_wak11'
 
 
 def loadData(infile):
@@ -19,7 +21,8 @@ def loadData(infile):
     return data
 
 
-data = loadData('../out/sms-20171118000041.xml_se.json')
+data = load_bow.loadLines('./wapp/wapp_wa_only_lines_x.txt')
+#data = loadData('../out/sms-20171118000041.xml_se.json')
 
 labels = np.load('../out/X_labels' + SUFFIX + '.npy')
 

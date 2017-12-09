@@ -4,8 +4,10 @@ import pickle
 
 SUFFIX = '_1'
 
-OUT_DIR = '/Users/jiayu/Documents/1Stanford/cs229/project/taffy/s2s/out/'
-DATA_DIR = '/Users/jiayu/Documents/1Stanford/cs229/project/out/'
+OUT_DIR = '/Users/kristenaw/Documents/Stanford/project/taffy/s2s/out/'
+DATA_DIR = '/Users/kristenaw/Documents/Stanford/project/out/'
+#OUT_DIR = '/Users/jiayu/Documents/1Stanford/cs229/project/taffy/s2s/out/'
+#DATA_DIR = '/Users/jiayu/Documents/1Stanford/cs229/project/out/'
 
 CMD_MK_VOCAB = 'mk_vocab'
 CMD_MK_IDS = 'mk_converted_ids'
