@@ -26,9 +26,13 @@ x_ids = unpickle(X_Y_DIR, X_FILE)
 y_ids = unpickle(X_Y_DIR, Y_FILE)
 IDS = ids_to_vocab.keys()
 
+wa_x_lines = []
+wa_y_lines = []
+
 
 def read_data(wapp_file, x_lines, y_lines):
     global x_ids, y_ids
+    global wa_x_lines, wa_y_lines
 
     last_line = None
     last_ids = None
@@ -47,6 +51,8 @@ def read_data(wapp_file, x_lines, y_lines):
                 cur_line = ' '.join(words)
                 x_lines.append(last_line)
                 y_lines.append(cur_line)
+                wa_x_lines.append(last_line)
+                wa_y_lines.append(cur_line)
                 last_line = cur_line
 
             ids = []
@@ -86,4 +92,8 @@ if __name__ == '__main__':
     with open(prefix + 'lines_x.txt', 'w') as f:
         f.write('\n'.join(x_lines))
     with open(prefix + 'lines_y.txt', 'w') as f:
+        f.write('\n'.join(y_lines))
+    with open(prefix + 'wa_only_lines_x.txt', 'w') as f:
+        f.write('\n'.join(x_lines))
+    with open(prefix + 'wa_only_lines_y.txt', 'w') as f:
         f.write('\n'.join(y_lines))
