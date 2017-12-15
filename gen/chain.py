@@ -1,3 +1,4 @@
+from collections import namedtuple
 import os
 import pickle
 import random
@@ -24,6 +25,7 @@ if True:  # Use wapp.
 
 
 def unpickle(dir, filename):
+    if not filename: return None
     filepath = os.path.join(dir, filename)
     with open(filepath, 'rb') as f:
         return pickle.load(f)
@@ -59,15 +61,27 @@ def ps_idx(word_i, word_j):
 
 class BaseChain(object):
 
-    def __init__(self):
-        num_ab = NUM_C if self.use_2 else NUM_AB
+    def __init__(self,
+                 Num_ab=NUM_AB,
+                 Num_c=NUM_C,
+                 C_range=C_RANGE):
+        num_ab = Num_c if self.use_2 else Num_ab
 
         # PS[ps_idx(a, b)][c] = probability
-        self.PS = np.zeros((num_ab, NUM_C))
+        self.PS = np.zeros((num_ab, Num_c))
         # PS's numerator.
-        self.ABC = np.zeros((num_ab, NUM_C))
+        self.ABC = np.zeros((num_ab, Num_c))
         # PS's denominator.
         self.AB = np.zeros(num_ab)
+
+        self.Num_ab = num_ab
+        self.Num_c = Num_c
+        self.C_range = C_range
+
+    def reloadTables(self):
+        self.PS = np.zeros((self.Num_ab, self.Num_c))
+        self.ABC = np.zeros((self.Num_ab, self.Num_c))
+        self.AB = np.zeros(self.Num_ab)
 
     def update(self, lines):
         raise ValueError('update not implemented %s' % self.__name__)
@@ -83,7 +97,7 @@ class BaseChain(object):
         if True:
             total_probs = np.sum(c_probs)
             prob = random.uniform(0., total_probs)
-            for c in C_RANGE:
+            for c in self.C_range:
                 prob -= c_probs[c]
                 if prob <= 0.:
                     best_c = c
@@ -168,27 +182,33 @@ class ThreeChain(BaseChain):
         print('Three chain with reply processed:', num_processed)
 
 
-def make_chain(ChainClazz, use_2, use_reply=False, split=False):
+ChainConfig = namedtuple('ChainConfig',
+                         ['suffix', 'file_dir', 'files', 'num_ab', 'num_c'])
+
+
+# cfg is a ChainConfig.
+def make_chain(ChainClazz, use_2, use_reply=False, cfg=None):
     print('Making chain:', ChainClazz.__name__, use_reply)
     suffix = '_n2' if use_2 else '_n3'
     if use_reply:
         suffix += '_reply'
-    if split:
-        suffix += '_split'
 
-    x_ids = unpickle(X_Y_DIR, X_FILE)
-    y_ids = unpickle(X_Y_DIR, Y_FILE)
-
-    
-    print('Num X lines', len(x_ids))
-    print('Num Y lines', len(y_ids))
+    all_ids = []
+    if cfg:
+        sfx, file_dir, files = cfg
+        suffix += sfx
+        for file in files:
+            all_ids.append(unpickle(file_dir, file))
+    else:
+        all_ids.append(unpickle(X_Y_DIR, X_FILE))
+        all_ids.append(unpickle(X_Y_DIR, Y_FILE))
 
     chain = ChainClazz()
     if use_reply:
-        chain.update_with_reply(x_ids, y_ids)
+        chain.update_with_reply(all_ids[0], all_ids[1])
     else:
-        chain.update(x_ids)
-        chain.update(y_ids)
+        for ids in all_ids:
+            chain.update(ids)
     s_PS = scipy.sparse.csr_matrix(chain.PS)
     s_AB = scipy.sparse.csr_matrix(chain.AB)
     s_ABC = scipy.sparse.csr_matrix(chain.ABC)
@@ -211,10 +231,14 @@ a = '''
     return dense'''
 
 
-def load_chain(ChainClazz, use_2, use_reply=False):
+def load_chain(ChainClazz, use_2, use_reply=False, cfg=None):
     suffix = '_n2' if use_2 else '_n3'
     if use_reply:
         suffix += '_reply'
+
+    if cfg:
+        suffix += cfg.suffix
+
     PS = make_dense(PFX + 'PS' + suffix + '.npz')
     AB = make_dense(PFX + 'AB' + suffix + '.npz')
     ABC = make_dense(PFX + 'ABC' + suffix + '.npz')
@@ -333,12 +357,16 @@ def one_chain(use_2):
     for _ in xrange(10):
         generate_line(chain, use_2)
 
-def generate_line(chain, use_2, max_len=8):
+def generate_line(chain, use_2, max_len=8, start_words=None, v=True):
     words = []
-
+    max_len = random.randrange(4, 12)
     if use_2:
-        w1, _ = chain.new_ab()
-        words = [w1]
+        if not start_words:
+            w1, _ = chain.new_ab()
+            words = [w1]
+        else:
+            words = start_words[:]
+            w1 = words[0]
         seen = set()
         while len(words) < max_len:
             c = chain.get_best_c(w1, None)
@@ -349,8 +377,7 @@ def generate_line(chain, use_2, max_len=8):
                 continue
 
             if c is None:
-                # break_early
-                if True: break
+                #if True: break
                 w1, _ = chain.new_ab()
                 continue
 
@@ -358,14 +385,19 @@ def generate_line(chain, use_2, max_len=8):
             w1 = c
 
     else:
-        w1, w2 = chain.new_ab()
-        words = [w1, w2]
+        if not start_words or len(start_words) < 2:            
+            w1, w2 = chain.new_ab()
+            words = [w1, w2]
+        else:
+            words = start_words[:]
+            w1, w2 = words[0], words[1]
+
         while len(words) < max_len:
             c = chain.get_best_c(w1, w2)
 
             if c is None:
                 # return_early
-                if True: break
+                #if True: break
                 w1, w2 = chain.new_ab()
                 continue
 
@@ -373,7 +405,9 @@ def generate_line(chain, use_2, max_len=8):
             w1, w2 = w2, c
 
     line = [ids_to_vocab.get(w, '^') for w in words]
-    print('> %s' % ' '.join(line))
+    if v:
+        print('> %s' % ' '.join(line))
+    return ' '.join(line)
 
 
 if __name__ == '__main__':
