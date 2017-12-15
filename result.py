@@ -10,7 +10,6 @@ fp.add_argument('data')
 
 SUFFIX = '_train1_smswak11'
 
-
 def loadData(infile):
     with open(infile, 'r') as f:
         indata = json.load(f)

@@ -110,7 +110,11 @@ def main():
     if False:
         printStats(km, vectorizer)  # Top features
 
+<<<<<<< HEAD
     if True:
+=======
+    if False:#True:
+>>>>>>> 663c1f7c7cdd18395e354fbe5db2b320f0dfb0b8
         t0_t = time()
         embeddings = TSNE(n_components=2)#tsne_num_components)
         Y = embeddings.fit_transform(X.todense())
