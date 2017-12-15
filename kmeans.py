@@ -23,7 +23,7 @@ from sklearn.manifold import TSNE
 
 COLORS = ['bgrcmk']
 
-SUFFIX = '_train1_wak11'
+SUFFIX = '_train1_smswak11'
 
 flag_parser = argparse.ArgumentParser()
 flag_parser.add_argument('n')
@@ -110,7 +110,7 @@ def main():
     if False:
         printStats(km, vectorizer)  # Top features
 
-    if False:#True:
+    if True:
         t0_t = time()
         embeddings = TSNE(n_components=2)#tsne_num_components)
         Y = embeddings.fit_transform(X.todense())

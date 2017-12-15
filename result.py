@@ -8,7 +8,7 @@ import load_bow
 fp = argparse.ArgumentParser()
 fp.add_argument('data')
 
-SUFFIX = '_train1_wak11'
+SUFFIX = '_train1_smswak11'
 
 
 def loadData(infile):
@@ -21,7 +21,7 @@ def loadData(infile):
     return data
 
 
-data = load_bow.loadLines('./wapp/wapp_wa_only_lines_x.txt')
+data = load_bow.loadLines('./wapp/sms_wapp_lines_x.txt')
 #data = loadData('../out/sms-20171118000041.xml_se.json')
 
 labels = np.load('../out/X_labels' + SUFFIX + '.npy')

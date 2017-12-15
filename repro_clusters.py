@@ -22,7 +22,7 @@ flag_parser.add_argument('dataset')
 flag_parser.add_argument('--repro')
 flags = flag_parser.parse_args()
 
-SUFFIX = '_train1_cv'
+SUFFIX = '_train1_smswak11'
 
 SE_DATA = '../out/sms-20171118000041.xml_se.json'
 LABELS = '../out/X_labels' + SUFFIX + '.npy'
